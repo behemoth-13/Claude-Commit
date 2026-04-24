@@ -12,9 +12,20 @@ import com.intellij.openapi.components.Storage
 class ClaudeCommitSettings : PersistentStateComponent<ClaudeCommitSettings.State> {
 
     /** Mutable backing bean serialised to XML. Use public fields (no val/var) for JAXB. */
+    enum class EffortLevel(val cliValue: String, val displayName: String) {
+        LOW("low", "Low"),
+        MEDIUM("medium", "Medium"),
+        HIGH("high", "High"),
+        XHIGH("xhigh", "Extra High"),
+        MAX("max", "Max");
+
+        override fun toString() = displayName
+    }
+
     class State {
         @JvmField var claudePath: String = ""
         @JvmField var promptTemplate: String = DEFAULT_PROMPT
+        @JvmField var effortLevel: String = EffortLevel.LOW.cliValue
     }
 
     private var myState = State()
@@ -29,6 +40,10 @@ class ClaudeCommitSettings : PersistentStateComponent<ClaudeCommitSettings.State
     var promptTemplate: String
         get() = myState.promptTemplate
         set(v) { myState.promptTemplate = v }
+
+    var effortLevel: EffortLevel
+        get() = EffortLevel.entries.firstOrNull { it.cliValue == myState.effortLevel } ?: EffortLevel.LOW
+        set(v) { myState.effortLevel = v.cliValue }
 
     companion object {
         fun getInstance(): ClaudeCommitSettings =

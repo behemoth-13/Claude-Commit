@@ -3,6 +3,7 @@ package com.bocman.claudecommit
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.builder.rows
@@ -10,7 +11,7 @@ import com.intellij.ui.dsl.builder.rows
 /** Shown under Settings → Tools → Claude Commit. */
 class ClaudeCommitConfigurable : BoundConfigurable("Claude Commit") {
 
-    private val settings = ClaudeCommitSettings.Companion.getInstance()
+    private val settings = ClaudeCommitSettings.getInstance()
 
     override fun createPanel(): DialogPanel = panel {
         row("Claude executable:") {
@@ -18,6 +19,14 @@ class ClaudeCommitConfigurable : BoundConfigurable("Claude Commit") {
                 .bindText(settings::claudePath)
                 .comment("Leave empty to auto-detect. Example: /opt/homebrew/bin/claude")
                 .align(AlignX.FILL)
+        }
+        row("Effort level:") {
+            comboBox(ClaudeCommitSettings.EffortLevel.entries)
+                .bindItem(
+                    { settings.effortLevel },
+                    { settings.effortLevel = it ?: ClaudeCommitSettings.EffortLevel.LOW }
+                )
+                .comment("Controls how much reasoning Claude applies. Low is fastest.")
         }
         collapsibleGroup("Prompt Template") {
             row {

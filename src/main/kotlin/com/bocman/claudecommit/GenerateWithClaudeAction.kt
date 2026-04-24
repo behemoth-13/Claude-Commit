@@ -197,7 +197,7 @@ class GenerateWithClaudeAction : AnAction("Generate with Claude"), DumbAware {
         try {
             tmp.writeText(prompt)
 
-            val pb = ProcessBuilder(claudePath, "--print")
+            val pb = ProcessBuilder(claudePath, "--print", "--effort", ClaudeCommitSettings.getInstance().effortLevel.cliValue)
                 .redirectErrorStream(false)
                 .redirectInput(tmp)
             with(pb.environment()) {

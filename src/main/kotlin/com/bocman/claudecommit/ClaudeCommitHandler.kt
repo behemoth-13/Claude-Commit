@@ -1,5 +1,6 @@
 package com.bocman.claudecommit
 
+import com.intellij.ide.DataManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
@@ -8,11 +9,12 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vcs.CheckinProjectPanel
+import com.intellij.openapi.vcs.VcsDataKeys
+import com.intellij.openapi.vcs.changes.InclusionListener
 import com.intellij.openapi.vcs.checkin.CheckinHandler
 import com.intellij.openapi.vcs.ui.RefreshableOnComponent
 import javax.swing.JButton
 import javax.swing.JComponent
-import javax.swing.Timer
 import javax.swing.event.AncestorEvent
 import javax.swing.event.AncestorListener
 
@@ -31,21 +33,38 @@ class ClaudeCommitHandler(private val panel: CheckinProjectPanel) : CheckinHandl
             toolTipText = "Select files to commit first"
         }
 
-        // There is no push-based callback for file selection changes in CheckinProjectPanel,
-        // so we poll every 300 ms on the EDT (Timer fires on the EDT by default).
-        val timer = Timer(300) {
+        fun updateButton() {
             val hasChanges = panel.selectedChanges.isNotEmpty()
             button.isEnabled = hasChanges
             button.toolTipText = if (hasChanges)
                 "Generate a commit message using the local Claude Code CLI"
             else
                 "Select files to commit first"
-        }.apply { isRepeats = true }
+        }
 
-        // Tie the timer lifecycle to the button's visibility so it never leaks.
         button.addAncestorListener(object : AncestorListener {
-            override fun ancestorAdded(e: AncestorEvent)   = timer.start()
-            override fun ancestorRemoved(e: AncestorEvent) = timer.stop()
+            private var listenerAttached = false
+
+            override fun ancestorAdded(e: AncestorEvent) {
+                updateButton()
+                if (!listenerAttached) {
+                    val ui = DataManager.getInstance()
+                        .getDataContext(panel.component)
+                        .getData(VcsDataKeys.COMMIT_WORKFLOW_UI)
+                    if (ui != null) {
+                        ui.addInclusionListener(
+                            object : InclusionListener {
+                                override fun inclusionChanged() =
+                                    ApplicationManager.getApplication().invokeLater { updateButton() }
+                            },
+                            ui
+                        )
+                        listenerAttached = true
+                    }
+                }
+            }
+
+            override fun ancestorRemoved(e: AncestorEvent) {}
             override fun ancestorMoved(e: AncestorEvent)   {}
         })
 

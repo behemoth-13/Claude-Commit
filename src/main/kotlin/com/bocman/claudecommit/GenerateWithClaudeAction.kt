@@ -22,14 +22,20 @@ class GenerateWithClaudeAction : AnAction("Generate with Claude"), DumbAware {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabledAndVisible = e.project != null
+        val ui = e.getData(VcsDataKeys.COMMIT_WORKFLOW_UI)
+        e.presentation.isVisible = e.project != null
+        e.presentation.isEnabled = ui != null && ui.getIncludedChanges().isNotEmpty()
     }
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         val commitMessageI = e.getData(VcsDataKeys.COMMIT_MESSAGE_CONTROL)
-        // Capture the selected changes on EDT before entering the background thread.
-        val changes = e.getData(VcsDataKeys.CHANGES)?.toList()
+        val changes = e.getData(VcsDataKeys.COMMIT_WORKFLOW_UI)?.getIncludedChanges() ?: emptyList()
+
+        if (changes.isEmpty()) {
+            Messages.showWarningDialog(project, "No files checked. Select files to commit first.", "Claude Commit")
+            return
+        }
 
         ProgressManager.getInstance().run(object : Task.Backgroundable(
             project, "Generating commit message with Claude…", /* canBeCancelled = */ true

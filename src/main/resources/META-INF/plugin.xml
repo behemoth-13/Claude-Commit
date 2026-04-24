@@ -1,17 +1,10 @@
-<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
-    <id>com.bocman.Claude-Commit</id>
-
-    <!-- Public plugin name should be written in Title Case.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
+    <id>com.bocman.сlaudecommit</id>
     <name>Claude Commit</name>
-
-    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
     <vendor email="behemothad@gmail.com" url="https://github.com/behemoth-13">Bocman</vendor>
-
-    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
+    <version>1.0.0</version>
+    <idea-version since-build="232"/>
+    <category>Version Control</category>
     <description><![CDATA[
         Adds a <b>Generate with Claude</b> button to the Git commit dialog.<br/>
         On click, it sends your staged diff and branch name to the locally installed
@@ -20,41 +13,28 @@
         Configure the prompt template under <b>Settings → Tools → Claude Commit</b>.
     ]]></description>
 
-    <!-- Product and plugin compatibility requirements.
-         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+    <change-notes><![CDATA[
+        Initial release:
+        <ul>
+        <li>Generate commit messages using Claude Code</li>
+        </ul>
+    ]]></change-notes>
+
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.vcs</depends>
     <depends>Git4Idea</depends>
 
-    <!-- Extension points defined by the plugin.
-         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-        <!-- Settings storage -->
-        <applicationService
-                serviceImplementation="com.bocman.claudecommit.ClaudeCommitSettings"/>
-
-        <!-- Settings UI under Settings > Tools > Claude Commit -->
+        <applicationService serviceImplementation="com.bocman.claudecommit.ClaudeCommitSettings"/>
         <applicationConfigurable
                 parentId="tools"
                 instance="com.bocman.claudecommit.ClaudeCommitConfigurable"
                 id="com.bocman.claudecommit.settings"
                 displayName="Claude Commit"/>
-
-        <!--
-            checkinHandlerFactory  → CheckinHandlerFactory  (all VCS)
-            vcs.checkinHandlerFactory → VcsCheckinHandlerFactory (VCS-specific subclass)
-            We extend CheckinHandlerFactory, so the correct EP is checkinHandlerFactory.
-        -->
-        <checkinHandlerFactory
-                implementation="com.bocman.claudecommit.ClaudeCommitHandlerFactory"/>
+        <checkinHandlerFactory implementation="com.bocman.claudecommit.ClaudeCommitHandlerFactory"/>
     </extensions>
 
     <actions>
-        <!--
-            Toolbar action placed next to the "Commit Message History" button.
-            Vcs.MessageActionGroup is the toolbar group rendered above/beside the
-            commit-message text area in the commit tool window.
-        -->
         <action id="ClaudeCommit.Generate"
                 class="com.bocman.claudecommit.GenerateWithClaudeAction"
                 text="Generate with Claude"

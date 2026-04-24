@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
@@ -19,6 +20,10 @@ import java.util.concurrent.CompletableFuture
 
 class GenerateWithClaudeAction : AnAction("Generate with Claude"), DumbAware {
 
+    companion object {
+        private val LOG = Logger.getInstance(GenerateWithClaudeAction::class.java)
+    }
+
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
@@ -33,9 +38,12 @@ class GenerateWithClaudeAction : AnAction("Generate with Claude"), DumbAware {
         val changes = e.getData(VcsDataKeys.COMMIT_WORKFLOW_UI)?.getIncludedChanges() ?: emptyList()
 
         if (changes.isEmpty()) {
+            LOG.info("[ClaudeCommit] Toolbar action triggered with no checked files")
             Messages.showWarningDialog(project, "No files checked. Select files to commit first.", "Claude Commit")
             return
         }
+
+        LOG.info("[ClaudeCommit] Toolbar action triggered — ${changes.size} file(s): ${changes.map { it.virtualFile?.name ?: "?" }}")
 
         ProgressManager.getInstance().run(object : Task.Backgroundable(
             project, "Generating commit message with Claude…", /* canBeCancelled = */ true
@@ -44,14 +52,18 @@ class GenerateWithClaudeAction : AnAction("Generate with Claude"), DumbAware {
                 try {
                     indicator.text = "Reading branch name…"
                     val branch = getBranchName(project)
+                    LOG.info("[ClaudeCommit] Branch: $branch")
 
                     indicator.text = "Reading diff…"
                     val diff = getDiff(project, changes)
 
                     if (diff.isBlank()) {
+                        LOG.warn("[ClaudeCommit] Diff is empty for selected files")
                         showWarning(project, "No diff found for the selected files.\nMake sure the files have unsaved changes.")
                         return
                     }
+                    LOG.info("[ClaudeCommit] Diff: ${diff.lines().size} lines, ${diff.length} chars")
+                    LOG.debug("[ClaudeCommit] Diff content:\n$diff")
 
                     indicator.checkCanceled()
                     indicator.text = "Calling Claude…"
@@ -62,20 +74,24 @@ class GenerateWithClaudeAction : AnAction("Generate with Claude"), DumbAware {
                             "Claude Code CLI not found.\n" +
                             "Install Claude Code or configure its path under Settings → Tools → Claude Commit."
                         )
+                    LOG.info("[ClaudeCommit] Using Claude at: $claudePath")
 
                     val prompt = settings.promptTemplate
                         .replace("{BRANCH}", branch)
                         .replace("{DIFF}", diff)
 
+                    LOG.info("[ClaudeCommit] Calling Claude (prompt: ${prompt.length} chars)…")
                     val message = callClaude(claudePath, prompt, indicator)
+                    LOG.info("[ClaudeCommit] Claude responded (${message.length} chars): ${message.take(120).replace('\n', '↵')}")
 
                     ApplicationManager.getApplication().invokeLater {
                         commitMessageI?.setCommitMessage(message.trim())
                             ?: showInfo(project, message.trim())
                     }
                 } catch (_: ProcessCanceledException) {
-                    // user hit the stop button — nothing to do
+                    LOG.info("[ClaudeCommit] Generation cancelled by user")
                 } catch (ex: Exception) {
+                    LOG.error("[ClaudeCommit] Generation failed", ex)
                     showError(project, ex.message ?: ex.toString())
                 }
             }
@@ -93,14 +109,6 @@ class GenerateWithClaudeAction : AnAction("Generate with Claude"), DumbAware {
             ?.currentBranchName
             ?: "unknown"
 
-    /**
-     * Build the diff for the given [changes].
-     *
-     * IntelliJ's commit dialog (without staging area) never runs `git add` until
-     * the actual commit, so `git diff --cached` is usually empty. Instead we run
-     * `git diff HEAD -- <files>` against the specific paths checked in the dialog.
-     * This reads directly from the working tree and is always current.
-     */
     internal fun getDiff(project: Project, changes: Collection<Change>?): String {
         val repo = GitRepositoryManager.getInstance(project).repositories.firstOrNull()
             ?: return ""
@@ -110,18 +118,35 @@ class GenerateWithClaudeAction : AnAction("Generate with Claude"), DumbAware {
             val filePaths = changes.mapNotNull { change ->
                 (change.afterRevision?.file ?: change.beforeRevision?.file)?.path
             }
-            if (filePaths.isNotEmpty()) {
-                // Working-tree vs HEAD for selected files — works regardless of staging state.
-                val diff = git(workDir, "diff", "HEAD", "--", *filePaths.toTypedArray())
-                if (diff.isNotBlank()) return diff
+            LOG.info("[ClaudeCommit] getDiff — ${filePaths.size} path(s): $filePaths")
 
-                // Newly added files that are already staged show up here.
+            if (filePaths.isNotEmpty()) {
+                val diff = git(workDir, "diff", "HEAD", "--", *filePaths.toTypedArray())
+                if (diff.isNotBlank()) {
+                    LOG.info("[ClaudeCommit] getDiff strategy: HEAD diff")
+                    return diff
+                }
+
                 val cached = git(workDir, "diff", "--cached", "--", *filePaths.toTypedArray())
-                if (cached.isNotBlank()) return cached
+                if (cached.isNotBlank()) {
+                    LOG.info("[ClaudeCommit] getDiff strategy: cached diff")
+                    return cached
+                }
+
+                val noIndex = filePaths.joinToString("\n") { path ->
+                    git(workDir, "diff", "--no-index", "/dev/null", path)
+                }
+                if (noIndex.isNotBlank()) {
+                    LOG.info("[ClaudeCommit] getDiff strategy: no-index (empty repo)")
+                    return noIndex
+                }
+
+                LOG.warn("[ClaudeCommit] getDiff: all strategies returned empty for $filePaths")
             }
         }
 
-        // Fallback when called without a change list (e.g. from tests or old handler path).
+        // Fallback when called without a change list (e.g. from tests).
+        LOG.info("[ClaudeCommit] getDiff strategy: fallback (no change list)")
         val staged = git(workDir, "diff", "--cached")
         return staged.ifBlank { git(workDir, "diff", "HEAD") }
     }
@@ -129,7 +154,7 @@ class GenerateWithClaudeAction : AnAction("Generate with Claude"), DumbAware {
     private fun git(workDir: File, vararg args: String): String {
         val process = ProcessBuilder("git", *args)
             .directory(workDir)
-            .redirectErrorStream(true)
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
             .start()
         val output = process.inputStream.bufferedReader().readText()
         process.waitFor()

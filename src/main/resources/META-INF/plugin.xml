@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>com.bocman.сlaudecommit</id>
+    <id>com.bocman.claudecommit</id>
     <name>Claude Commit</name>
     <vendor email="behemothad@gmail.com" url="https://github.com/behemoth-13">Bocman</vendor>
     <version>1.0.0</version>

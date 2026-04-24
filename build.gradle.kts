@@ -18,8 +18,6 @@ repositories {
     }
 }
 
-// Configure IntelliJ Platform Gradle Plugin
-// Read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html
 dependencies {
     intellijPlatform {
         create("IC", "2025.1.4.1")
@@ -49,8 +47,7 @@ tasks {
         enabled = false
     }
     patchPluginXml {
-        sinceBuild.set("232")       // IntelliJ 2023.2 / Android Studio Iguana+
-        untilBuild.set("")          // no upper cap — works with any future build
+        sinceBuild.set("232")
     }
 }
 

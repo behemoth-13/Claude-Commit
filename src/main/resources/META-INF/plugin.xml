@@ -8,7 +8,7 @@
     <name>Claude Commit</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor email="behemothad@gmail.com">Bocman</vendor>
+    <vendor email="behemothad@gmail.com" url="https://github.com/behemoth-13">Bocman</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
@@ -58,7 +58,8 @@
         <action id="ClaudeCommit.Generate"
                 class="com.bocman.claudecommit.GenerateWithClaudeAction"
                 text="Generate with Claude"
-                description="Generate a commit message using the local Claude Code CLI">
+                description="Generate a commit message using the local Claude Code CLI"
+                icon="/icons/claudeCommit.svg">
             <add-to-group group-id="Vcs.MessageActionGroup" anchor="first"/>
         </action>
     </actions>

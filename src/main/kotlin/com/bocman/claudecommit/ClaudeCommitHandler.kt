@@ -151,8 +151,9 @@ class ClaudeCommitHandler(private val panel: CheckinProjectPanel) : CheckinHandl
                     ApplicationManager.getApplication().invokeLater {
                         panel.setCommitMessage(message.trim())
                     }
-                } catch (_: ProcessCanceledException) {
+                } catch (ex: ProcessCanceledException) {
                     LOG.info("[ClaudeCommit] Generation cancelled by user")
+                    throw ex
                 } catch (ex: Exception) {
                     LOG.error("[ClaudeCommit] Generation failed", ex)
                     showError(project, ex.message ?: ex.toString())

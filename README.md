@@ -4,6 +4,10 @@ An IntelliJ plugin that generates Git commit messages using the [Claude Code](ht
 
 ![Plugin Icon](src/main/resources/META-INF/pluginIcon.svg)
 
+<img width="1200" height="761" alt="Screenshot 2026-04-24 at 20 16 52" src="https://github.com/user-attachments/assets/2b72fd41-0b3b-4bb9-a903-3f535fef88b6" />
+<img width="1200" height="761" alt="Screenshot 2026-04-24 at 20 17 45" src="https://github.com/user-attachments/assets/3d3e6d44-131a-4554-9861-639472634b58" />
+
+
 ## How it works
 
 1. Open the Git commit dialog (`⌘0` / `Alt+0`)
